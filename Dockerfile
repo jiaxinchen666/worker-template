@@ -6,6 +6,7 @@ RUN ln -sf $(which python3.10) /usr/local/bin/python && \
 
 # Install dependencies
 COPY requirements.txt /requirements.txt
+RUN pip install uv
 RUN uv pip install --upgrade -r /requirements.txt --no-cache-dir --system
 RUN apt-get update && apt-get install -y supervisor
 
