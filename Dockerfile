@@ -13,7 +13,6 @@ COPY supervisord.conf /etc/supervisord.conf
 
 # Add files
 ADD handler.py .
-ADD start.sh .
 ADD torch-flow.yml .
 ADD img_prompt.py .
 # Run the handler
