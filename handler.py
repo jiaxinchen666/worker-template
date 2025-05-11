@@ -17,27 +17,30 @@ pc = Pinecone(api_key=os.getenv('PINECONE_API_KEY'))
 PINECONE_INDEX_1024="ds-images-1024"
 index_1024 = pc.Index(PINECONE_INDEX_1024)
 
-import socket
 import time
 import sys
 
-def wait_for_port(host: str, port: int, timeout: int = 300):
+import time
+import sys
+
+def wait_for_clip_server(host: str = 'localhost', port: int = 51000, timeout: int = 600):
     start_time = time.time()
     while time.time() - start_time < timeout:
         try:
-            with socket.create_connection((host, port), timeout=2):
-                print(f"[✓] clip-server is ready at {host}:{port}")
-                return
-        except (OSError, ConnectionRefusedError):
-            print(f"[...] Waiting for clip-server at {host}:{port}...")
-            time.sleep(1)
+            c_g = Client('grpc://0.0.0.0:51000')
+            _ = c_g.encode(["test"])  # 发送简单请求
+            print(f"[✓] clip-server is ready at {host}:{port}")
+            return
+        except Exception as e:
+            print(f"[...] Waiting for clip-server ({e})")
+            time.sleep(10)
     print(f"[✗] Timeout: clip-server not available after {timeout} seconds.", file=sys.stderr)
     sys.exit(1)
 
-# ✅ 最重要的一行：确保 clip-server 启动完毕再连接
-wait_for_port("localhost", 51000)
+# 在初始化 clip-client 之前调用
+wait_for_clip_server()
 
-c_g = Client('grpc://0.0.0.0:51000')
+# c_g = Client('grpc://0.0.0.0:51000')
 
 json_path = "/tmp/gcp.json"
 with open(json_path, "w") as f:
