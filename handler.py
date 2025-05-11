@@ -17,9 +17,33 @@ pc = Pinecone(api_key=os.getenv('PINECONE_API_KEY'))
 PINECONE_INDEX_1024="ds-images-1024"
 index_1024 = pc.Index(PINECONE_INDEX_1024)
 
+import socket
+import time
+import sys
+
+def wait_for_port(host: str, port: int, timeout: int = 300):
+    start_time = time.time()
+    while time.time() - start_time < timeout:
+        try:
+            with socket.create_connection((host, port), timeout=2):
+                print(f"[✓] clip-server is ready at {host}:{port}")
+                return
+        except (OSError, ConnectionRefusedError):
+            print(f"[...] Waiting for clip-server at {host}:{port}...")
+            time.sleep(1)
+    print(f"[✗] Timeout: clip-server not available after {timeout} seconds.", file=sys.stderr)
+    sys.exit(1)
+
+# ✅ 最重要的一行：确保 clip-server 启动完毕再连接
+wait_for_port("localhost", 51000)
+
 c_g = Client('grpc://0.0.0.0:51000')
 
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = os.getenv('GOOGLE_APPLICATION_CREDENTIALS')
+json_path = "/tmp/gcp.json"
+with open(json_path, "w") as f:
+    f.write(os.getenv('GOOGLE_APPLICATION_CREDENTIALS'))
+
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = json_path
 client = storage.Client()
 bucket_name = 'tgaigc'  # 替换为您的存储桶名称
 bucket = client.bucket(bucket_name)
