@@ -7,10 +7,14 @@ RUN ln -sf $(which python3.10) /usr/local/bin/python && \
 # Install dependencies
 COPY requirements.txt /requirements.txt
 RUN uv pip install --upgrade -r /requirements.txt --no-cache-dir --system
+RUN apt-get update && apt-get install -y supervisor
+
+COPY supervisord.conf /etc/supervisord.conf
 
 # Add files
 ADD handler.py .
 ADD start.sh .
 ADD torch-flow.yml .
+ADD img_prompt.py .
 # Run the handler
-CMD bash start.sh && python -u /handler.py
+CMD ["supervisord", "-c", "/etc/supervisord.conf"]

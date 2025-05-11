@@ -1,1 +1,0 @@
-python -m clip_server /root/search_engine/torch-flow.yml
