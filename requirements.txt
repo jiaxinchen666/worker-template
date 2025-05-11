@@ -1,8 +1,6 @@
-# Required Python packages get listed here, one per line.
-
 runpod~=1.7.9
-clip-server==0.8.3
-clip-client==0.8.3
-pinecone[grpc]==6.0.0
+clip-server==0.8.2
+clip-client==0.8.2
+pinecone-client==3.0.0 
 google-cloud-storage==3.1.0
 openai
