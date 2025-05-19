@@ -90,3 +90,12 @@ async def handler(job):
 
 runpod.serverless.start({"handler": handler})
 
+if __name__ == "__main__":
+    import json
+    import asyncio
+
+    with open("test_input.json") as f:
+        test_job = json.load(f)
+
+    result = asyncio.run(handler(test_job))
+    print("Result:", result)
