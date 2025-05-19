@@ -74,10 +74,12 @@ async def call_claude_chat_async(request_body: dict):
 
 async def handler(job):
     """Async handler function that processes jobs."""
+    print("start handler")
     job_input = job["input"]["llm_input"]
     llm = job["input"]["llm"]
 
     if llm == "gpt":
+        print("gpt")
         result = await call_gpt_chat_async(job_input)
     elif llm == "claude":
         result = await call_claude_chat_async(job_input)
