@@ -11,7 +11,7 @@ RUN pip install --upgrade pip && pip install uv
 COPY requirements.txt /requirements.txt
 RUN uv pip install -r /requirements.txt --no-cache-dir --system
 
-COPY handler.py ./
+COPY handler.py /handler.py
 
 # Entrypoint
 CMD python -u /handler.py
