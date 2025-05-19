@@ -1,4 +1,4 @@
-FROM runpod/base:0.5.1-cpu
+FROM runpod/base:0.6.3-cpu
 
 # Set python3.10 as default
 RUN ln -sf $(which python3.10) /usr/local/bin/python && \
@@ -12,7 +12,6 @@ COPY requirements.txt /requirements.txt
 RUN uv pip install -r /requirements.txt --no-cache-dir --system
 
 COPY handler.py ./
-COPY test_input.json ./
 
 # Entrypoint
 CMD python -u /handler.py
