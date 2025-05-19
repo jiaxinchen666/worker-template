@@ -1,101 +1,90 @@
-"""Example handler file."""
-
 import runpod
+import asyncio
 import os
-import json
-from pinecone import Pinecone
-from clip_client import Client
-from google.cloud import storage
-from dotenv import load_dotenv
-import requests
-import logging
-from img_prompt import gen_img_prompt
-import datetime
+import httpx
+from openai import AsyncOpenAI
+from typing import Any, Dict, List, Optional
+from pydantic import BaseModel
 
-pc = Pinecone(api_key=os.getenv('PINECONE_API_KEY'))
+# OpenAI client
+openai_client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-PINECONE_INDEX_1024="ds-images-1024"
-index_1024 = pc.Index(PINECONE_INDEX_1024)
+# Claude config
+CLAUDE_API_KEY = os.getenv("CLAUDE_API_KEY")
+CLAUDE_API_URL = "https://api.anthropic.com/v1/messages"
+CLAUDE_API_VERSION = "2023-06-01"
 
-import time
-import sys
+class OpenAIChatRequest(BaseModel):
+    model: str
+    messages: List[dict]
+    temperature: Optional[float] = 0.7
+    top_p: Optional[float] = 1.0
+    max_tokens: Optional[int] = 1024
+    frequency_penalty: Optional[float] = 0.0
+    presence_penalty: Optional[float] = 0.0
+    logit_bias: Optional[Dict[str, float]] = None
+    stop: Optional[List[str]] = None
+    user: Optional[str] = None
+    stream: Optional[bool] = False
+    response_format: Optional[str] = None
 
-import time
-import sys
+class ClaudeChatRequest(BaseModel):
+    model: str
+    messages: List[dict]
+    system: Optional[str] = None
+    temperature: Optional[float] = 0.7
+    top_p: Optional[float] = 1.0
+    max_tokens: Optional[int] = 1024
+    stream: Optional[bool] = False
 
-def wait_for_clip_server(host: str = 'localhost', port: int = 51000, timeout: int = 600):
-    start_time = time.time()
-    while time.time() - start_time < timeout:
-        try:
-            c_g = Client('grpc://0.0.0.0:51000')
-            _ = c_g.encode(["test"])  # 发送简单请求
-            print(f"[✓] clip-server is ready at {host}:{port}")
-            return
-        except Exception as e:
-            print(f"[...] Waiting for clip-server ({e})")
-            time.sleep(10)
-    print(f"[✗] Timeout: clip-server not available after {timeout} seconds.", file=sys.stderr)
-    sys.exit(1)
+async def call_gpt_chat_async(request_body: dict):
+    try:
+        req = OpenAIChatRequest(**request_body)
+        completion = await openai_client.chat.completions.create(**req.dict())
+        return {"content": completion.choices[0].message.content}
+    except Exception as e:
+        return {"error": str(e)}
 
-# 在初始化 clip-client 之前调用
-wait_for_clip_server()
+async def call_claude_chat_async(request_body: dict):
+    headers = {
+        "x-api-key": CLAUDE_API_KEY,
+        "anthropic-version": CLAUDE_API_VERSION,
+        "content-type": "application/json",
+    }
 
-# c_g = Client('grpc://0.0.0.0:51000')
+    req = ClaudeChatRequest(**request_body)
+    payload = {
+        "model": req.model,
+        "messages": req.messages,
+        "temperature": req.temperature,
+        "max_tokens": req.max_tokens,
+    }
 
-json_path = "/tmp/gcp.json"
-with open(json_path, "w") as f:
-    f.write(os.getenv('GOOGLE_APPLICATION_CREDENTIALS'))
+    if req.system:
+        payload["system"] = req.system
 
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = json_path
-client = storage.Client()
-bucket_name = 'tgaigc'  # 替换为您的存储桶名称
-bucket = client.bucket(bucket_name)
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(CLAUDE_API_URL, headers=headers, json=payload)
+            response.raise_for_status()
+            data = response.json()
+            return {"content": data["content"][0]["text"]}
+    except Exception as e:
+        return {"error": str(e)}
 
-def query_encode_search(prompt, topk, role, stage):
-    logging.info(f"query_encode_search: {prompt}, {topk}, {role}, {stage}")
-    text_value_g = c_g.encode([prompt])
+async def handler(job):
+    """Async handler function that processes jobs."""
+    job_input = job["input"]["llm_input"]
+    llm = job["input"]["llm"]
 
-    result_g = index_1024.query(
-        namespace=f"{role}_vitg_stage_{stage}",
-        vector=text_value_g.tolist()[0],
-        filter={
-            "gcp_id": {"$nin": []},
-        },
-        top_k=topk,
-        include_values=False,
-        include_metadata=True
-    )
+    if llm == "gpt":
+        result = await call_gpt_chat_async(job_input)
+    elif llm == "claude":
+        result = await call_claude_chat_async(job_input)
+    else:
+        result = {"error": f"Unsupported llm: {llm}"}
 
-    return result_g  
-
-def gen_view_url(result):
-    url_list = []
-    for i in range(len(result["matches"])):
-        gcp_path=result["matches"][i]["metadata"]["gcp_id"]
-        blob = bucket.blob(gcp_path)
-        url = blob.generate_signed_url(
-            expiration=datetime.timedelta(minutes=15),  # URL有效期为15分钟
-            method='GET'
-        )
-        url_list.append(url)
-    return url_list
-
-
-
-def handler(job):
-    """Handler function that will be used to process jobs."""
-    job_input = job["input"]
-    character_content = job_input.get("character_content", "")
-    user_content = job_input.get("user_content", "")
-    character_name = job_input.get("character_name", "")
-    topk = job_input.get("topk", 1)
-
-    img_prompt = gen_img_prompt(character_content, user_content, character_name)
-    if img_prompt is None:
-        return {"error": "Failed to generate image prompt"}
-
-    result = query_encode_search(img_prompt["img_prompt"], topk, character_name, img_prompt["stage"])
-    url_list = gen_view_url(result)
-    return {"result": url_list}
+    return {"result": result}
 
 runpod.serverless.start({"handler": handler})
+

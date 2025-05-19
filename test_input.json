@@ -1,8 +1,14 @@
 {
   "input": {
-    "character_content": "Ganyu is a beautiful girl with long black hair and blue eyes. She is a member of the Liyue Qixing and a close friend of the protagonist. She is a skilled archer and has a kind and gentle personality.",
-    "user_content": "Hold ganyu down firmly and thrust right in.",
-    "character_name": "miko_yae",
-    "topk": 1
+    "llm": "gpt",
+    "llm_input": {
+      "model": "gpt-4o-mini",
+      "messages": [
+        {
+          "role": "user",
+          "content": "Hello, world!"
+        }
+      ]
+    }
   }
 }

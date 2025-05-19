@@ -1,6 +1,2 @@
 runpod~=1.7.9
-clip-server==0.8.3
-clip-client==0.8.3
-google-cloud-storage
-pinecone
 openai
