@@ -6,13 +6,21 @@ from openai import AsyncOpenAI
 from typing import Any, Dict, List, Optional
 from pydantic import BaseModel
 
-# OpenAI client
-openai_client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+try:
+    # OpenAI client
+    openai_client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-# Claude config
-CLAUDE_API_KEY = os.getenv("CLAUDE_API_KEY")
-CLAUDE_API_URL = "https://api.anthropic.com/v1/messages"
-CLAUDE_API_VERSION = "2023-06-01"
+    # Claude config
+    CLAUDE_API_KEY = os.getenv("CLAUDE_API_KEY")
+    CLAUDE_API_URL = "https://api.anthropic.com/v1/messages"
+    CLAUDE_API_VERSION = "2023-06-01"
+    print("OpenAI and Claude clients initialized successfully")
+except Exception as e:
+    print(f"Error initializing OpenAI or Claude clients: {e}")
+    openai_client = None
+    CLAUDE_API_KEY = None
+    CLAUDE_API_URL = None
+    CLAUDE_API_VERSION = None
 
 class OpenAIChatRequest(BaseModel):
     model: str
